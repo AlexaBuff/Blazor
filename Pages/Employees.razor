@@ -1,0 +1,659 @@
+﻿@page "/Employees"
+@using BlazorCRUD.Data
+@inject EmployeeService employeeService
+
+
+@using Blazorise
+
+
+@*<NavLink class="nav-link" href="AddEmployee">
+        <span class="oi oi-plus" aria-hidden="true">Add New</span>
+
+    </NavLink>*@
+
+<Modal @ref="modalRef" ScrollToTop="true">
+
+    <ModalContent Centered="true" Size="ModalSize.Large">
+        <ModalHeader>
+            <ModalTitle>Полные данные:</ModalTitle>
+            <CloseButton />
+        </ModalHeader>
+        <ModalBody>
+            <Fields>
+                <Field ColumnSize="ColumnSize.IsThird.OnDesktop">
+                    <FieldLabel>Фамилия</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text="@emp.FEmp" Disabled="true" />
+                    </FieldBody>
+                </Field>
+                <Field ColumnSize="ColumnSize.IsThird.OnDesktop">
+                    <FieldLabel>Имя</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text="@emp.IEmp" Disabled="true" />
+                    </FieldBody>
+                </Field>
+                <Field ColumnSize="ColumnSize.IsThird.OnDesktop">
+                    <FieldLabel>Отчество</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text="@emp.OEmp" Disabled="true" />
+                    </FieldBody>
+                </Field>
+            </Fields>
+
+            <Fields>
+                <Field ColumnSize="ColumnSize.Is2.OnDesktop">
+                    @{ string pol = "";
+                        if ((emp as Employee)?.PolEmp == null)
+                            pol = "";
+                        else if ((emp as Employee)?.PolEmp == "м")
+                            pol = "мужчина";
+                        else if ((emp as Employee)?.PolEmp == "ж")
+                            pol = "женщина"; }
+                    <FieldLabel>Пол</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text=@pol Disabled="true" />
+                    </FieldBody>
+                </Field>
+                <Field ColumnSize="ColumnSize.Is3.OnDesktop">
+                    @{ string dateStr;
+
+                        if (@emp.DRozhEmp == null) dateStr = "";
+                        else dateStr = @emp.DRozhEmp?.ToString("dd.MM.yyyy"); }
+
+                    <FieldLabel>Дата рожд-я</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text=@dateStr Disabled="true" />
+                    </FieldBody>
+                </Field>
+                <Field ColumnSize="ColumnSize.Is3.OnDesktop">
+                    <FieldLabel>Телефон</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text="@emp.TelEmp" Disabled="true" />
+                    </FieldBody>
+                </Field>
+                <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                    <FieldLabel>Полис</FieldLabel>
+                    <FieldBody>
+                        <TextEdit Text="@emp.PolisEmp" Disabled="true" />
+                    </FieldBody>
+                </Field>
+            </Fields>
+
+            <Field Horizontal="true">
+                <FieldLabel ColumnSize="ColumnSize.Is2">Адрес</FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is10">
+                    <TextEdit Text="@emp.AdressEmp" Disabled="true" />
+                </FieldBody>
+            </Field>
+            <Field Horizontal="true">
+                @{ string dateStr1;
+                    if (@emp.DRozhEmp == null) dateStr1 = "";
+                    else dateStr1 = @emp.PassportDEmp?.ToString("dd.MM.yyyy"); }
+                <FieldLabel ColumnSize="ColumnSize.Is2">Паспорт</FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is10">
+                    <TextEdit Text="@("серия: " + @emp.PassportSEmp + " номер: " + @emp.PassportNEmp + " выдан: " + @dateStr1 + " " + @emp.PassportVEmp)" Disabled="true" />
+                </FieldBody>
+            </Field>
+
+        </ModalBody>
+
+    </ModalContent>
+
+</Modal>
+
+
+<DataGrid TItem="Employee" @ref="dataGrid"
+          Data="@employeeList"
+          Editable="true"
+          CommandMode="DataGridCommandMode.ButtonRow"
+          ShowPageSizes="true"
+          EditMode="DataGridEditMode.Popup"
+          Bordered="true"
+          Hoverable="true"
+          Responsive="true"
+          ShowPager="true"
+          RowInserting="@OnRowInserting"
+          RowUpdated="@OnRowUpdated"
+          RowRemoved="@OnRowRemoved"
+          PopupSize="ModalSize.Large"
+          RowDoubleClicked="@ShowModal"
+          UseInternalEditing="true"
+          PagerPosition="DataGridPagerPosition.Top"
+          Resizable="true"
+          FixedHeader="true"
+          FixedHeaderDataGridHeight=690px
+          ResizeMode="TableResizeMode.Columns"
+          SelectionMode="DataGridSelectionMode.Single"
+          @bind-SelectedRow="@selectedEmployee"
+          CustomFilter="@OnCustomFilter">
+
+
+    <PopupTitleTemplate>
+        @if (context.EditState == DataGridEditState.New)@("Добавить работника:")
+        @if (context.EditState == DataGridEditState.Edit)@("Редактировать данные работника:")
+    </PopupTitleTemplate>
+
+    <FirstPageButtonTemplate>
+        &lt;&lt;
+    </FirstPageButtonTemplate>
+
+    <LastPageButtonTemplate>
+        &gt;&gt;
+    </LastPageButtonTemplate>
+
+    <PreviousPageButtonTemplate>
+        &lt;
+    </PreviousPageButtonTemplate>
+
+    <NextPageButtonTemplate>
+        &gt;
+    </NextPageButtonTemplate>
+
+    <ItemsPerPageTemplate>
+        записей на странице
+    </ItemsPerPageTemplate>
+
+    <TotalItemsTemplate>
+
+        @{ if (@context.CurrentPage != context.LastPage) item = (@context.CurrentPage * context.CurrentPageSize).ToString();
+            else item = @context.TotalItems.ToString();
+            item1 = ((@context.CurrentPage * context.CurrentPageSize) - @context.CurrentPageSize + 1).ToString(); }
+
+
+
+        @item1 - @item из @context.TotalItems записей<br><br>
+    </TotalItemsTemplate>
+
+    @code{ // reference to the modal component
+
+        string item;
+        string item1;
+        private Modal modalRef;
+        private ModalTitle modTitle;
+        Employee emp = new Employee();
+        private void ShowModal(DataGridRowMouseEventArgs<Employee> dataGridRow)
+        {
+
+            emp = dataGridRow.Item;
+
+
+            modalRef.Show();
+        }
+
+        private void HideModal()
+        {
+            modalRef.Hide();
+        }
+
+        //public void OnModalClosing(ModalClosingEventArgs e)
+        //{
+        //    if (e.CloseReason != CloseReason.UserClosing)
+        //    {
+        //        // just set Cancel to true to prevent modal from closing
+        //        e.Cancel = true;
+        //    }
+        //}
+
+
+
+        void MyCancelHandler(CommandContext commandContext)
+        {
+
+            commandContext.Clicked.InvokeAsync(null);
+            btnSave = true;
+        }
+
+        void MyDeleteHandler(DeleteCommandContext<Employee> commandContext)
+        {
+
+            commandContext.Clicked.InvokeAsync();
+            selectedEmployee = null;
+        } }
+
+
+
+    <ButtonRowTemplate>
+        <Addons>
+            <Addon AddonType="AddonType.Start">
+                <Button Color="Color.Success" Clicked="@context.NewCommand.Clicked"> Новая запись</Button>
+                <Button Color="Color.Primary" Clicked="@context.EditCommand.Clicked" Disabled="@(selectedEmployee is null)"> Редактировать</Button>
+                <Button Color="Color.Danger" Clicked="@((e) => MyDeleteHandler(context.DeleteCommand))" Disabled="@(selectedEmployee is null)"> Удалить</Button>
+            </Addon>
+            <Addon AddonType="AddonType.Body">
+                <TextEdit Text="@customFilterValue" TextChanged="@OnCustomFilterValueChanged" Role="TextRole.Search" Style="background-color:burlywood;" Color="Color.Light" Placeholder="Поиск по фамилии..." />
+            </Addon>
+        </Addons>
+    </ButtonRowTemplate>
+
+
+
+    <DataGridColumns>
+
+        <Layout>
+            <DataGridCommandColumn TItem="Employee" Width="130px">
+                <NewCommandTemplate>
+                    <Button Color="Color.Success" Size="Size.Small" Clicked="@context.Clicked">
+                        <Icon Name="IconName.Add" /> Новая запись
+                    </Button>
+                </NewCommandTemplate>
+                <EditCommandTemplate>
+                    <Button Size="Size.Small" Margin="Margin.Is0.OnY.FromTop" Color="Color.Primary">
+                        <Icon Name="IconName.Edit" /> Редактировать
+                    </Button>
+                </EditCommandTemplate>
+                <SaveCommandTemplate>
+                    <Button Color="Color.Primary" Clicked="@context.Clicked" @bind-Disabled=btnSave><Icon Name="IconName.Save" /> Сохранить</Button>
+                </SaveCommandTemplate>
+                <DeleteCommandTemplate>
+                    <Button Margin="Margin.Is1.OnY.FromTop.Is0.OnY.FromBottom" Padding="Padding.Is0.OnY" Style="width:135px;height:28px;align-content:center;" Color="Color.Danger" Clicked="@context.Clicked">
+                        <Icon Name="IconName.Delete" /> Удалить
+                    </Button>
+                </DeleteCommandTemplate>
+                <CancelCommandTemplate>
+                    <Button Color="Color.Secondary" Clicked="@((e) => MyCancelHandler(context))"><Icon Name="IconName.Ban" /> Отмена</Button>
+                </CancelCommandTemplate>
+                <ClearFilterCommandTemplate>
+                    <Button Color="Color.Warning" Clicked="@context.Clicked">Очистить фильтр</Button>
+                </ClearFilterCommandTemplate>
+            </DataGridCommandColumn>
+
+
+            <DataGridColumn TItem="Employee" Field="Employee.IdEmp" Displayable="false" Caption="#">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+            </DataGridColumn>
+
+
+            <DataGridColumn TItem="Employee" PopupFieldColumnSize="ColumnSize.IsThird.OnDesktop" Field="@nameof(Employee.FEmp)" Caption="Фамилия" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckF" @ref="valF">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.IEmp)" PopupFieldColumnSize="ColumnSize.IsThird.OnDesktop" Sortable="false" Caption="Имя" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckI" @ref="valI">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+
+
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.OEmp)" PopupFieldColumnSize="ColumnSize.IsThird.OnDesktop" Sortable="false" Caption="Отчество" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckO" @ref="valO">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+
+            @code{ void OnSelectedValueChanged(string value, CellEditContext cellEdit)
+                {
+                    cellEdit.CellValue = value;
+                    btnSave = false;
+                } }
+
+            <DataGridSelectColumn TItem="Employee" Field="@nameof(Employee.PolEmp)" PopupFieldColumnSize="ColumnSize.IsHalf.OnDesktop" Displayable="false" Caption="Пол" Editable="true">
+                <DisplayTemplate>
+                    @{ var gender = (context as Employee)?.PolEmp;
+
+@if (gender == "ж")
+{@("женщина") }
+else if (gender == "м")
+{ @("мужчина")} }
+                </DisplayTemplate>
+                <EditTemplate>
+                    <Select TValue="string" SelectedValue="@((string)(context.CellValue))" SelectedValueChanged="@( v => OnSelectedValueChanged(v, context))">
+                        <SelectItem TValue="string" Value="null"></SelectItem>
+                        <SelectItem TValue="string" Value="@("м")">мужчина</SelectItem>
+                        <SelectItem TValue="string" Value="@("ж")">женщина</SelectItem>
+                    </Select>
+
+                </EditTemplate>
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+            </DataGridSelectColumn>
+
+            @code{ void OnDateChanged(DateTime? date, CellEditContext cellEdit)
+                {
+                    cellEdit.CellValue = date;
+                    btnSave = false;
+                } }
+            <DataGridDateColumn ElementId="dg" TItem="Employee" Field="@nameof(Employee.DRozhEmp)" DisplayFormat="{0:dd.MM.yyyy}" PopupFieldColumnSize="ColumnSize.IsHalf.OnDesktop" Caption="Дата рожд-я" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <DateEdit TValue="DateTime?" Date="@((DateTime?)context.CellValue)" DateChanged="(e => OnDateChanged(e, context))" />
+                </EditTemplate>
+            </DataGridDateColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.TelEmp)" Displayable="false" PopupFieldColumnSize="ColumnSize.IsHalf.OnDesktop" Caption="Телефон" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckTel" @ref="valTel">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.PolisEmp)" PopupFieldColumnSize="ColumnSize.IsHalf.OnDesktop" Caption="Полис" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckPolis" @ref="valPolis">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.AdressEmp)" PopupFieldColumnSize="ColumnSize.IsFull" Displayable="false" Caption="Адрес" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckAdr" @ref="valAdress">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.PassportSEmp)" PopupFieldColumnSize="ColumnSize.Is4.OnDesktop" Caption="Паспорт серия" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckPasS" @ref="valPasS">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.PassportNEmp)" PopupFieldColumnSize="ColumnSize.Is3.OnDesktop" Caption="номер" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckPasN" @ref="valPasN">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+            </DataGridColumn>
+            <DataGridDateColumn TItem="Employee" Field="@nameof(Employee.PassportDEmp)" PopupFieldColumnSize="ColumnSize.Is5.OnDesktop" Displayable="false" Caption="дата выдачи" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <DateEdit TValue="DateTime?" Date="@((DateTime?)context.CellValue)" DateChanged="(e => OnDateChanged(e, context))" />
+                </EditTemplate>
+            </DataGridDateColumn>
+            <DataGridColumn TItem="Employee" Field="@nameof(Employee.PassportVEmp)" PopupFieldColumnSize="ColumnSize.IsFull.OnDesktop" Displayable="false" Caption="выдан" Editable="true">
+                <SortDirectionTemplate>
+                    <Icon Padding="Padding.Is2" Name="@GetName(context)" />
+                </SortDirectionTemplate>
+                <EditTemplate>
+                    <Validations ValidateOnLoad="false" Model="@obj" StatusChanged="@OnStatusChanged">
+                        <Validation Validator="CheckCol.CheckPasV" @ref="valPasV">
+                            <TextEdit Text="@((string)context.CellValue)" TextChanged="@( v => context.CellValue = v)">
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </Validations>
+                </EditTemplate>
+
+            </DataGridColumn>
+        </Layout>
+    </DataGridColumns>
+
+
+</DataGrid>
+
+<SnackbarStack @ref="snackbarStack" Location="SnackbarStackLocation.Right" />
+
+@code { List<Employee> employeeList;
+            Employee obj = new Employee();
+    public DataGrid<Employee> dataGrid;
+        Employee selectedEmployee;
+
+        bool btnSave = true;
+
+        protected override async Task OnInitializedAsync()
+        {
+            employeeList = await employeeService.GetAllEmployeesAsync();
+        }
+
+
+
+        Validation valF, valI, valO, valTel, valPolis, valAdress, valPasS, valPasN, valPasV;
+
+
+
+        private void OnStatusChanged(ValidationsStatusChangedEventArgs eventArgs)
+        {
+
+            if (valF.Status == ValidationStatus.Error || valI.Status == ValidationStatus.Error || valO.Status == ValidationStatus.Error
+               || valO.Status == ValidationStatus.Error || valTel.Status == ValidationStatus.Error ||
+                valPolis.Status == ValidationStatus.Error || valAdress.Status == ValidationStatus.Error ||
+                valPasS.Status == ValidationStatus.Error || valPasN.Status == ValidationStatus.Error || valPasV.Status == ValidationStatus.Error)
+            {
+
+                btnSave = true;
+            }
+            else if (valF.Status == ValidationStatus.None && valI.Status == ValidationStatus.None && valO.Status == ValidationStatus.None
+                 && valO.Status == ValidationStatus.None && valTel.Status == ValidationStatus.None &&
+                valPolis.Status == ValidationStatus.None && valAdress.Status == ValidationStatus.None &&
+                valPasS.Status == ValidationStatus.None && valPasN.Status == ValidationStatus.None && valPasV.Status == ValidationStatus.None)
+
+            {
+
+                btnSave = true;
+            }
+
+            else
+            {
+                btnSave = false;
+            }
+
+        }
+
+
+        SnackbarStack snackbarStack;
+
+
+        async void OnRowInserting(CancellableRowChange<Employee, Dictionary<string, object>> e)
+        {
+            try
+            {
+                Employee newEmployee = new Employee
+                {
+                    FEmp = e.Values["FEmp"] == null ? null : e.Values["FEmp"].ToString(),
+                    IEmp = e.Values["IEmp"] == null ? null : e.Values["IEmp"].ToString(),
+                    OEmp = e.Values["OEmp"] == null ? null : e.Values["OEmp"].ToString(),
+                    PolEmp = e.Values["PolEmp"] == null ? null : e.Values["PolEmp"].ToString(),
+                    DRozhEmp = e.Values["DRozhEmp"] == null ? null : DateTime.Parse(e.Values["DRozhEmp"].ToString()),
+                    TelEmp = e.Values["TelEmp"] == null ? null : e.Values["TelEmp"].ToString(),
+                    PolisEmp = e.Values["PolisEmp"] == null ? null : e.Values["PolisEmp"].ToString(),
+                    AdressEmp = e.Values["AdressEmp"] == null ? null : e.Values["AdressEmp"].ToString(),
+                    PassportSEmp = e.Values["PassportSEmp"] == null ? null : e.Values["PassportSEmp"].ToString(),
+                    PassportNEmp = e.Values["PassportNEmp"] == null ? null : e.Values["PassportNEmp"].ToString(),
+                    PassportDEmp = e.Values["PassportDEmp"] == null ? null : DateTime.Parse(e.Values["PassportDEmp"].ToString()),
+                    PassportVEmp = e.Values["PassportVEmp"] == null ? null : e.Values["PassportVEmp"].ToString()
+                };
+
+
+                bool resultCheck = employeeList.Any(c =>
+                   c.FEmp == newEmployee.FEmp
+                && c.IEmp == newEmployee.IEmp
+                && c.OEmp == newEmployee.OEmp
+                && c.DRozhEmp == newEmployee.DRozhEmp
+                );
+
+                if (!resultCheck)
+                {
+                    await employeeService.InsertEmployeeAsync(newEmployee);
+                    btnSave = true;
+                    await snackbarStack.PushAsync("Запись добавлена успешно", SnackbarColor.Success, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+                }
+                else
+                {
+                    e.Cancel = true;
+                    await snackbarStack.PushAsync($"Пациент с такими ФИО и датой рождения уже есть в Базе данных", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 3500; });
+                    // btnSave = true;
+
+                }
+            }
+            catch (Exception exc)
+            {
+                e.Cancel = true;
+                await snackbarStack.PushAsync("При добавлении записи возникла ошибка", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+            }
+        }
+
+
+        async void OnRowUpdated(SavedRowItem<Employee, Dictionary<string, object>> e)
+        {
+            try
+            {
+                var employee = e.Item;
+                await employeeService.UpdateEmployeeAsync(employee);
+
+                btnSave = true;
+
+                await snackbarStack.PushAsync("Запись отредактирована успешно", SnackbarColor.Success, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+            }
+            catch (Exception exc)
+            {
+                await snackbarStack.PushAsync("При редактировании записи возникла ошибка", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+            }
+        }
+
+        async void OnRowRemoved(Employee employee)
+        {
+            try
+            {
+
+                await employeeService.DeleteEmployeeAsync(employee.IdEmp);
+                btnSave = true;
+
+                await snackbarStack.PushAsync("Запись удалена успешно", SnackbarColor.Success, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+
+            }
+
+
+            catch (ArgumentNullException exc)
+            {
+                //await snackbarStack.PushAsync("При удалении записи возникла ошибка", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+            }
+
+            catch (Exception exc)
+            {
+                await snackbarStack.PushAsync("При удалении записи возникла ошибка", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+
+            }
+
+        }
+
+        string customFilterValue;
+
+        private Task OnCustomFilterValueChanged(string e)
+        {
+            customFilterValue = e;
+            return dataGrid.Reload();
+        }
+
+        bool OnCustomFilter(Employee model)
+        {
+            if (string.IsNullOrEmpty(customFilterValue))
+                return true;
+
+            return
+                model.FEmp?.Contains(customFilterValue, StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        IconName name;
+        public IconName GetName(SortDirection sortDirection)
+        {
+
+            name = sortDirection == SortDirection.Ascending ? IconName.SortUp : IconName.SortDown;
+
+            return name;
+        }
+
+
+        //async void OnRowInserted(SavedRowItem<Employee, Dictionary<string, object>> e)
+        //{
+        //    try
+        //    {
+        //        Employee newEmployee = e.Item;
+        //        CheckPacient(e.Item);
+        //        //await employeeService.InsertEmployeeAsync(newEmployee);
+        //        //btnSave = true;
+        //        //await snackbarStack.PushAsync("Запись добавлена успешно", SnackbarColor.Success, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+        //    }
+        //    catch (Exception exc)
+        //    {
+        //        await snackbarStack.PushAsync("При добавлении записи возникла ошибка", SnackbarColor.Danger, options => { options.CloseButtonText = "OK"; options.IntervalBeforeClose = 2500; });
+        //    }
+        //}
+    }
